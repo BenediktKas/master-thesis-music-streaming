@@ -4,6 +4,9 @@
 *.parquet
 Dataset/
 Raw_Data/
+# Ignore everything under data/ EXCEPT its README
+data/*
+!data/README.md
 
 # Python
 __pycache__/

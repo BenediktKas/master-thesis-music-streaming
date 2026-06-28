@@ -1,17 +1,18 @@
-"""Step 3: activeness label (LABEL window) + fixed train/val/test split.
+"""Step 2 (VALIDATED): build the modeling table from user_window_agg.parquet —
+activeness label, study-population filter, derived early features, fixed split.
 
-Label and split definitions come from config so every model is comparable.
+Study population: users with impressions in BOTH the early and label windows.
+Label: inactive if label-window click rate <= ACTIVE_CLICK_THRESHOLD (NCM's
+"zero or very low average click probability"). Split is fixed by userId hash.
 """
-import hashlib
-import duckdb
-import polars as pl
+import hashlib, polars as pl
 from src import config
 
-config.DERIVED_DIR.mkdir(parents=True, exist_ok=True)
+DER = config.DERIVED_DIR
 
 
-def _split(user_id: str) -> str:
-    h = int(hashlib.md5(f"{user_id}-{config.SPLIT_SEED}".encode()).hexdigest(), 16)
+def split(u: str) -> str:
+    h = int(hashlib.md5(f"{u}-{config.SPLIT_SEED}".encode()).hexdigest(), 16)
     r = (h % 10_000) / 10_000
     if r < config.TEST_FRAC:
         return "test"
@@ -21,24 +22,19 @@ def _split(user_id: str) -> str:
 
 
 def main():
-    con = duckdb.connect()
-    lo, hi = config.LABEL_WINDOW_DAYS
-    glob = str(config.PARQUET_DIR / "impressions" / "**" / "*.parquet")
-    df = con.execute(f"""
-        SELECT userId, AVG(isClick) AS label_click_rate
-        FROM read_parquet('{glob}', hive_partitioning=true)
-        WHERE dt BETWEEN {lo} AND {hi}
-        GROUP BY userId
-    """).pl()
+    df = pl.read_parquet(DER / "user_window_agg.parquet")
+    n0 = df.height
+    df = df.filter((pl.col("e_impr") > 0) & (pl.col("l_impr") > 0))
+    df = df.with_columns((pl.col("l_clicks") / pl.col("l_impr")).alias("l_click_rate"))
     df = df.with_columns([
-        (pl.col("label_click_rate") <= config.ACTIVE_CLICK_THRESHOLD)
-            .alias("is_inactive"),
-        pl.col("userId").map_elements(_split, return_dtype=pl.Utf8).alias("split"),
+        (pl.col("l_click_rate") <= config.ACTIVE_CLICK_THRESHOLD).alias("is_inactive"),
+        pl.col("userId").map_elements(split, return_dtype=pl.Utf8).alias("split"),
+        (pl.col("e_clicks") / pl.col("e_impr")).alias("e_click_rate"),
+        (pl.col("e_likes") / pl.col("e_impr")).alias("e_like_rate"),
+        (pl.col("e_view_time_sum") / pl.col("e_impr")).alias("e_avg_view_time"),
     ])
-    out = config.DERIVED_DIR / "labels.parquet"
-    df.write_parquet(out)
-    print(f"Wrote {out}: {df.height} users")
-    print(df.group_by("split").len())
+    df.write_parquet(DER / "user_modeling_table.parquet")
+    print(f"study_users={df.height} (from {n0}); inactive_rate={df['is_inactive'].mean():.4f}")
 
 
 if __name__ == "__main__":

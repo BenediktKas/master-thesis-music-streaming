@@ -19,8 +19,8 @@ ACTIVE_CLICK_THRESHOLD = 0.0          # primary: "zero or very low"
 ROBUSTNESS_THRESHOLDS = [0.01, 0.05]  # pre-registered alternatives
 
 # ---- Temporal split (prevents leakage) ------------------------------------
-EARLY_WINDOW_DAYS = (0, 6)    # build features here
-LABEL_WINDOW_DAYS = (7, 29)   # define activeness here
+EARLY_WINDOW_DAYS = (1, 7)    # build features here (dt runs 1..30)
+LABEL_WINDOW_DAYS = (8, 30)   # define activeness here
 # Only users with >=1 impression in the early window enter the study.
 
 # ---- Train/val/test split (fixed by userId hash, reused everywhere) -------

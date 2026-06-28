@@ -24,16 +24,24 @@ Full plan: **`docs/Thesis_Blueprint_Q2.docx`**.
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Put the raw CSVs in data/raw/csv_data/ (see data/README.md), then:
-python -m src.data.convert_to_parquet     # 6.3 GB CSV -> Parquet (once)
-python -m src.data.build_user_features     # early-window user features
-python -m src.data.build_labels            # activeness label + fixed split
+# Put Raw_Data.zip at data/raw/Raw_Data.zip, then build the shared foundation:
+bash src/data/run_user_window_agg.sh   # stream zip -> per-user window aggregates
+python -m src.data.build_labels        # activeness label + study filter + split
+python -m src.data.baseline            # reference metrics (number to beat)
+
+# Optional (Members B/E only): full row-level Parquet for sequences/recommender
+bash src/data/run_convert_to_parquet.sh
 ```
+See **`docs/GROUNDWORK_FINDINGS.md`** for results from the first run and the
+decisions the data forces (threshold choice, survivorship, the data-quality
+quirk in `detailMlogInfoList`).
 
 ## Ground rules
 - Shared label/window/split live in `src/config.py` — agree them once, never fork.
 - **Never** commit data (it's gitignored) or use `level` as a predictor (leakage).
 - Every model trains on the same split so AUC/PR numbers are comparable.
+- The impression CSV has unquoted JSON (commas) in `detailMlogInfoList`; always
+  keep only the **last 12 columns** when parsing (the pipeline does this).
 
 ## Layout
 ```

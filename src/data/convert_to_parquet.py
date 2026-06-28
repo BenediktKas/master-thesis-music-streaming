@@ -1,33 +1,36 @@
-"""Step 1: stream the 6.3 GB impression CSV into partitioned Parquet.
+"""OPTIONAL: materialize the FULL impression table as partitioned Parquet.
 
-One-time cost, run by ONE person. Uses DuckDB so it never loads the
-whole file into memory. The small tables are converted too for convenience.
+Only needed by Members B (sequences) and E (recommender) who require row-level
+events, not just user aggregates. Members A/C/D should NOT run this — use the
+much cheaper build_user_window_agg.sh instead.
+
+Robust parsing note: `detailMlogInfoList` is unquoted JSON with commas, so we
+keep only the stable last-12 columns via awk before writing Parquet. Large
+output (~1-2 GB); run on your Mac.
+
+Usage:
+    bash src/data/run_convert_to_parquet.sh
 """
-import duckdb
+import sys, duckdb
 from src import config
 
+OUT = config.PARQUET_DIR / "impressions"
 config.PARQUET_DIR.mkdir(parents=True, exist_ok=True)
+COLS = ("{'dt':'INT','impressPosition':'INT','impressTime':'BIGINT','isClick':'INT',"
+        "'isComment':'INT','isIntoPersonalHomepage':'INT','isShare':'INT',"
+        "'isViewComment':'INT','isLike':'INT','mlogId':'VARCHAR',"
+        "'mlogViewTime':'VARCHAR','userId':'VARCHAR'}")
 
 
 def main():
     con = duckdb.connect()
-    imp = config.RAW_DIR / "impression_data.csv"
-    print(f"Converting {imp} -> partitioned Parquet (by dt)...")
+    con.execute("PRAGMA threads=4")
+    con.execute(f"PRAGMA temp_directory='{config.PARQUET_DIR / 'duckdb_tmp'}'")
     con.execute(f"""
-        COPY (SELECT * FROM read_csv_auto('{imp}', header=true))
-        TO '{config.PARQUET_DIR / "impressions"}'
-        (FORMAT PARQUET, PARTITION_BY (dt), OVERWRITE_OR_IGNORE);
+        COPY (SELECT * FROM read_csv('/dev/stdin', header=true, columns={COLS}))
+        TO '{OUT}' (FORMAT PARQUET, PARTITION_BY (dt), OVERWRITE_OR_IGNORE)
     """)
-    for name in ["user_demographics", "mlog_demographics",
-                 "mlog_stats", "creator_demographics", "creator_stats"]:
-        src = config.RAW_DIR / f"{name}.csv"
-        if src.exists():
-            con.execute(f"""
-                COPY (SELECT * FROM read_csv_auto('{src}', header=true))
-                TO '{config.PARQUET_DIR / (name + ".parquet")}' (FORMAT PARQUET);
-            """)
-            print(f"  wrote {name}.parquet")
-    print("Done.")
+    print(f"wrote partitioned Parquet to {OUT}", file=sys.stderr)
 
 
 if __name__ == "__main__":

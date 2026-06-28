@@ -1,0 +1,18 @@
+# Data — never commit (too large for GitHub's 100 MB file limit)
+*.zip
+*.csv
+*.parquet
+Dataset/
+Raw_Data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

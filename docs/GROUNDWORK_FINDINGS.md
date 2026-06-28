@@ -16,9 +16,8 @@ These full-data figures matched an earlier 20M-row validation sample (721k users
 to within 0.1% on every headline metric, confirming the sample was representative
 and the pipeline is correct end-to-end.
 
-> The detailed distribution tables below (threshold sensitivity, window-overlap
-> breakdown, active-vs-inactive contrast) are from that representative sample.
-> Regenerate them on full data anytime with `python -m src.data.eda`.
+> The detailed distribution tables below are on **full data**
+> (regenerate anytime with `python -m src.data.eda`).
 
 ## Data-quality issue found (important)
 
@@ -40,8 +39,8 @@ Inactive = label-window click rate ≤ threshold. The rate is highly sensitive:
 |---|---|
 | 0.00 ("zero clicks") | 71.7% |
 | 0.01 | 73.0% |
-| 0.05 | 83.5% |
-| 0.10 | 91.3% |
+| 0.05 | 83.4% |
+| 0.10 | 91.4% |
 
 Even the strictest definition labels ~72% of users inactive — a heavy class
 imbalance every predictive model must handle (class weights / PR-AUC focus). The
@@ -53,21 +52,22 @@ Of the sampled users, only **26%** have impressions in **both** windows
 
 | Group | Users |
 |---|---|
-| Both windows (study population) | 187,696 |
-| Early window only | 103,719 |
-| Label window only | 429,893 |
-| **Study population** | **187,696** |
+| Both windows (study population) | 542,842 |
+| Early window only | 298,828 |
+| Label window only | 1,243,932 |
+| **Study population** | **542,842** |
 
-Many users appear only later in the month. The study population (both windows)
-must be defined explicitly in the thesis, and the bias acknowledged.
+Many users appear only later in the month (1.24M are label-window-only). The
+study population (both windows) must be defined explicitly in the thesis, and the
+bias acknowledged.
 
 ### 3. Active vs. inactive users differ clearly on early behaviour
 Means over early-window features (study population):
 
 | | Active | Inactive |
 |---|---|---|
-| Early impressions | 40.5 | 11.8 |
-| Early clicks | 2.93 | 0.33 |
+| Early impressions | 40.4 | 11.8 |
+| Early clicks | 2.92 | 0.33 |
 | Early active days | 2.25 | 1.64 |
 | Early like rate | 0.0025 | 0.0008 |
 

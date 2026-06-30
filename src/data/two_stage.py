@@ -37,15 +37,29 @@ def fit_report(df, feats, target):
             "pr_auc": round(average_precision_score(yte, p), 4)}
 
 
+def _add_tenure(df):
+    """Join non-leaky platform tenure (registeredMonthCnt) if available."""
+    ud = config.RAW_DIR.parent / "user_demographics.csv"
+    if ud.exists() and "registeredMonthCnt" not in df.columns:
+        u = pl.read_csv(ud).select(["userId", "registeredMonthCnt"])
+        df = df.join(u, on="userId", how="left")
+    return df
+
+
 def main():
+    # tenure is a non-leaky covariate (fixed before the window); include when present
+    TEN = ["registeredMonthCnt"]
+
     # Stage 1 — retention (churn) over all early-window users
-    ret = pl.read_parquet(DER / "user_retention_table.parquet")
+    ret = _add_tenure(pl.read_parquet(DER / "user_retention_table.parquet"))
     feats1 = BEHAV + [c for c in ["ct_video_share_seen", "ct_seen_n_content"] if c in ret.columns]
+    feats1 += [c for c in TEN if c in ret.columns]
     s1 = fit_report(ret, feats1, "churned")
 
     # Stage 2 — activeness among returning users (existing study population)
-    mt = pl.read_parquet(DER / "user_modeling_table.parquet")
-    s2 = fit_report(mt, BEHAV, "is_inactive")
+    mt = _add_tenure(pl.read_parquet(DER / "user_modeling_table.parquet"))
+    feats2 = BEHAV + [c for c in TEN if c in mt.columns]
+    s2 = fit_report(mt, feats2, "is_inactive")
 
     out = {"stage1_retention": s1, "stage2_activeness": s2}
     json.dump(out, open(DER / "two_stage_metrics.json", "w"), indent=2)

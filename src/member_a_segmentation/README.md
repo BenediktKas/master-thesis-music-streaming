@@ -32,6 +32,22 @@ k=3 separated cleanly into a low-intent dormant majority (~77% inactive), a smal
 power-user cluster (~17% inactive, ~25 early clicks, broad taste), and an engaged
 middle. Re-run on full data for final segments.
 
+
+## Full analysis (run in order, from repo root)
+
+```bash
+python3 -m src.member_a_segmentation.segment       # k-means segments + profiles + overview figure
+python3 -m src.member_a_segmentation.figures       # PCA scatter (Figure 2 in the chapter)
+python3 -m src.member_a_segmentation.robustness    # silhouette-vs-k, GMM/HDBSCAN agreement, bootstrap stability
+python3 -m src.member_a_segmentation.preferences   # video/breadth taste by activeness and segment
+```
+
+Findings (full data): k=3 is highly stable (bootstrap ARI 0.98) and agrees with a
+Gaussian mixture (ARI 0.74); HDBSCAN fragments, because users form an engagement
+gradient rather than discrete clusters. Active users reveal ~2x broader taste than
+inactive users (content categories, creators, artists); video-vs-image format does
+not separate them.
+
 ## Ideas to extend (your individual contribution)
 - Content-taste entropy (Shannon over `contentId`) as a diversity axis.
 - Try GMM / HDBSCAN and compare cluster stability across resamples.

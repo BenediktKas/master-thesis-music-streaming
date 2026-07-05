@@ -39,14 +39,11 @@ middle. Re-run on full data for final segments.
 python3 -m src.member_a_segmentation.segment       # k-means segments + profiles + overview figure
 python3 -m src.member_a_segmentation.figures       # PCA scatter (Figure 2 in the chapter)
 python3 -m src.member_a_segmentation.robustness    # silhouette-vs-k, GMM/HDBSCAN agreement, bootstrap stability
-python3 -m src.member_a_segmentation.preferences   # video/breadth taste by activeness and segment
+python3 -m src.member_a_segmentation.preferences   # descriptive taste by activeness/segment (note: breadth is volume-confounded)
+bash src/data/run_taste_analysis.sh "../Dataset/Raw_Data.zip"   # volume-controlled test: is there taste structure? (no)
 ```
 
-Findings (full data): k=3 is highly stable (bootstrap ARI 0.98) and agrees with a
-Gaussian mixture (ARI 0.74); HDBSCAN fragments, because users form an engagement
-gradient rather than discrete clusters. Active users reveal ~2x broader taste than
-inactive users (content categories, creators, artists); video-vs-image format does
-not separate them.
+Findings (full data): k=3 is highly stable (bootstrap ARI 0.98) and agrees with a Gaussian mixture (ARI 0.74); HDBSCAN fragments, because users form an engagement gradient. The segmentation is ACTIVITY-based, not taste-based: 'broader taste' is a volume artifact (corr up to 0.996), and a volume-controlled composition test finds no separable taste structure (silhouette <0.18). True genre was dropped from the data. See taste_analysis.py.
 
 ## Ideas to extend (your individual contribution)
 - Content-taste entropy (Shannon over `contentId`) as a diversity axis.

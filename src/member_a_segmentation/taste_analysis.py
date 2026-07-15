@@ -7,10 +7,11 @@ vectors. A low silhouette means there is no separable taste structure.
 Run:  bash src/data/... | python -m src.member_a_segmentation.taste_analysis
 or use run_taste_analysis.sh.
 """
-import numpy as np, duckdb
+import json, numpy as np, duckdb
 from src import config
 
 CARDS = config.RAW_DIR.parent / "mlog_demographics.csv"
+OUT = config.DERIVED_DIR / "member_a_taste.json"
 COLS = ("{'dt':'INT','impressPosition':'INT','impressTime':'BIGINT','isClick':'INT',"
         "'isComment':'INT','isIntoPersonalHomepage':'INT','isShare':'INT',"
         "'isViewComment':'INT','isLike':'INT','mlogId':'VARCHAR',"
@@ -28,9 +29,15 @@ def main():
         WHERE i.dt BETWEEN {e0} AND {e1} GROUP BY i.userId, cc.cat""")
     g = con.execute("SELECT cat, SUM(clk) c FROM uac GROUP BY cat ORDER BY c DESC").df()
     cum = g["c"].cumsum() / g["c"].sum()
+    report = {"n_content_categories": int(len(g)),
+              "top1_click_share": round(float(cum.iloc[0]), 3),
+              "top5_click_share": round(float(cum.iloc[4]), 3),
+              "top10_click_share": round(float(cum.iloc[9]), 3),
+              "categories_covering_80pct_clicks": int((cum < 0.8).sum()) + 1,
+              "composition_silhouette_by_k": {}}
     print(f"content categories: {len(g)}; top-1/5/10 click share: "
           f"{cum.iloc[0]:.2f}/{cum.iloc[4]:.2f}/{cum.iloc[9]:.2f}; "
-          f"categories covering 80% of clicks: {int((cum < 0.8).sum()) + 1}")
+          f"categories covering 80% of clicks: {report['categories_covering_80pct_clicks']}")
     topcats = list(g["cat"].head(40))
     rows = con.execute(f"SELECT userId, cat, clk FROM uac WHERE cat IN "
                        f"({','.join(chr(39)+c+chr(39) for c in topcats)})").df()
@@ -43,12 +50,18 @@ def main():
     M = M[M.sum(1) > 0]; S = M / M.sum(1, keepdims=True)
     from sklearn.cluster import KMeans
     from sklearn.metrics import silhouette_score
-    print(f"users with >=5 early clicks: {len(S)}; mean top-category share: {np.max(S, 1).mean():.3f}")
+    report["n_users_ge5_clicks"] = int(len(S))
+    report["mean_top_category_share"] = round(float(np.max(S, 1).mean()), 3)
+    print(f"users with >=5 early clicks: {len(S)}; mean top-category share: {report['mean_top_category_share']:.3f}")
     sub = np.random.default_rng(0).choice(len(S), min(8000, len(S)), replace=False)
     for k in (2, 3, 4, 5):
         lab = KMeans(n_clusters=k, n_init=5, random_state=0).fit(S).labels_
-        print(f"  composition clusters k={k}: silhouette={silhouette_score(S[sub], lab[sub]):.3f}")
+        sc = round(float(silhouette_score(S[sub], lab[sub])), 3)
+        report["composition_silhouette_by_k"][str(k)] = sc
+        print(f"  composition clusters k={k}: silhouette={sc:.3f}")
     print("Low silhouette (<0.2) => no separable taste structure; users are activity-differentiated, not taste-differentiated.")
+    json.dump(report, open(OUT, "w"), indent=2)
+    print(f"wrote {OUT}")
 
 
 if __name__ == "__main__":

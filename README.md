@@ -18,7 +18,7 @@ Full plan: **`docs/Thesis_Blueprint_Q2.docx`**.
 | C | `src/member_c_survival`     | Time-to-disengagement (b) |
 | D | `src/member_d_uplift`       | Causal uplift targeting (c) |
 | E | `src/member_e_recommender`  | Activeness-optimized recommender (c, optional) |
-
+| F | `src/member_f_supply_side`  | Creator churn + feedback effects, supply side (c) |
 ## Getting started
 ```bash
 python -m venv .venv && source .venv/bin/activate
